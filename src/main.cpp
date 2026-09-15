@@ -46,6 +46,17 @@
 
 static HttpServer server(80);
 
+static void printResetInfo(const char* tag) {
+  Serial.print("[");
+  Serial.print(tag);
+  Serial.print("] reset reason=");
+  Serial.println(ESP.getResetReason());
+  Serial.print("[");
+  Serial.print(tag);
+  Serial.print("] reset info=");
+  Serial.println(ESP.getResetInfo());
+}
+
 static void motorForward(int motor) {
   if (motor == MOTOR_A) { digitalWrite(PIN_IN1, HIGH); digitalWrite(PIN_IN2, LOW); }
   else                 { digitalWrite(PIN_IN3, HIGH); digitalWrite(PIN_IN4, LOW); }
@@ -108,14 +119,30 @@ static void sendCmd() {
 
 void setup(void) {
   Serial.begin(115200);
+  Serial.println();
+  Serial.println(F("=== TankBot boot ==="));
+  printResetInfo("setup");
+
+  Serial.print(F("flash:"));
+  Serial.println(ESP.getFlashChipRealSize());
+  Serial.print(F("free heap:"));
+  Serial.println(ESP.getFreeHeap());
+
   for (int p : { PIN_IN1, PIN_IN2, PIN_IN3, PIN_IN4 }) {
     pinMode(p, OUTPUT);
     digitalWrite(p, LOW);
   }
+  Serial.println(F("motor pins set LOW"));
 
+  Serial.print(F("WiFi.mode(AP) "));
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(AP_SSID, AP_PASS);
+  Serial.println(F("done"));
 
+  Serial.print(F("softAP start: "));
+  bool ok = WiFi.softAP(AP_SSID, AP_PASS);
+  Serial.println(ok ? F("OK") : F("FAILED"));
+
+  Serial.print(F("server.begin "));
   server.on("/", helloPage);
   server.on("/cmd/fwd", sendCmd);
   server.on("/cmd/back", sendCmd);
@@ -123,6 +150,7 @@ void setup(void) {
   server.on("/cmd/right", sendCmd);
   server.on("/cmd/stop", sendCmd);
   server.begin();
+  Serial.println(F("done"));
 
   Serial.println(F("TankBot AP ready"));
   Serial.println(F("L298N IN1/2/3/4 -> GPIO 14/12/13/15 (D13/D12/D11/D10)"));
@@ -133,7 +161,19 @@ void setup(void) {
   delay(500);
 }
 
+static unsigned long lastTicker = 0;
+
 void loop(void) {
+  unsigned long now = millis();
+  if (now - lastTicker >= 2000) {
+    lastTicker = now;
+    Serial.print("alive t=");
+    Serial.print(now);
+    Serial.print("ms heap=");
+    Serial.print(ESP.getFreeHeap());
+    Serial.print(" resetreason=");
+    Serial.println(ESP.getResetReason());
+  }
   server.handleClient();
   delay(5);
 }
