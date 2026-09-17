@@ -10,28 +10,6 @@
   typedef ESP8266WebServer HttpServer;
 #endif
 
-// ============================================================================
-//  Wemos D1 TankBot - WiFi AP + web D-pad controller for an L298N (blue board)
-//
-//  The board creates its own WiFi network:
-//     SSID : TankBot
-//     pass : 12345678
-//  Connect a phone/laptop to it, open  http://192.168.4.1  and drive the tank.
-//
-//  L298N wiring (D1 -> L298N):
-//    D13 (GPIO14) -> IN1   (motor A direction 1)
-//    D12 (GPIO12) -> IN2   (motor A direction 2)
-//    D11 (GPIO13) -> IN3   (motor B direction 1)
-//    D10 (GPIO15) -> IN4   (motor B direction 2)
-//    ENA, ENB    -> 5V (jumper, always on -> full speed)
-//    GND         -> GND shared with the board
-//    7-12V       -> VMS motor supply
-//
-//  (The SPI row is often labeled D5-D8 = SCK/MISO/MOSI/SS; the pins are the
-//   same GPIOs: D5=14, D6=12, D7=13, D8=15.)
-//
-//  Edit the pin numbers below to match your wiring.
-// ============================================================================
 
 #define PIN_IN1 14
 #define PIN_IN2 12
@@ -58,17 +36,17 @@ static void printResetInfo(const char* tag) {
 }
 
 static void motorForward(int motor) {
-  if (motor == MOTOR_A) { digitalWrite(PIN_IN1, HIGH); digitalWrite(PIN_IN2, LOW); }
+  if (motor == 0) { digitalWrite(PIN_IN1, HIGH); digitalWrite(PIN_IN2, LOW); }
   else                 { digitalWrite(PIN_IN3, HIGH); digitalWrite(PIN_IN4, LOW); }
 }
 
 static void motorBackward(int motor) {
-  if (motor == MOTOR_A) { digitalWrite(PIN_IN1, LOW);  digitalWrite(PIN_IN2, HIGH); }
+  if (motor == 0) { digitalWrite(PIN_IN1, LOW);  digitalWrite(PIN_IN2, HIGH); }
   else                 { digitalWrite(PIN_IN3, LOW);  digitalWrite(PIN_IN4, HIGH); }
 }
 
 static void motorStop(int motor) {
-  if (motor == MOTOR_A) { digitalWrite(PIN_IN1, LOW); digitalWrite(PIN_IN2, LOW); }
+  if (motor == 0) { digitalWrite(PIN_IN1, LOW); digitalWrite(PIN_IN2, LOW); }
   else                 { digitalWrite(PIN_IN3, LOW); digitalWrite(PIN_IN4, LOW); }
 }
 
@@ -128,9 +106,10 @@ void setup(void) {
   Serial.print(F("free heap:"));
   Serial.println(ESP.getFreeHeap());
 
-  for (int p : { PIN_IN1, PIN_IN2, PIN_IN3, PIN_IN4 }) {
-    pinMode(p, OUTPUT);
-    digitalWrite(p, LOW);
+  static const int motorPins[] = { PIN_IN1, PIN_IN2, PIN_IN3, PIN_IN4 };
+  for (size_t i = 0; i < sizeof(motorPins) / sizeof(motorPins[0]); i++) {
+    pinMode(motorPins[i], OUTPUT);
+    digitalWrite(motorPins[i], LOW);
   }
   Serial.println(F("motor pins set LOW"));
 
@@ -153,7 +132,7 @@ void setup(void) {
   Serial.println(F("done"));
 
   Serial.println(F("TankBot AP ready"));
-  Serial.println(F("L298N IN1/2/3/4 -> GPIO 14/12/13/15 (D13/D12/D11/D10)"));
+  Serial.println(F("L298N IN1/2/3/4 -> GPIO 14/12/13/15 (D5/D6/D7/D8)"));
   Serial.print(F("SSID: ")); Serial.println(AP_SSID);
   Serial.print(F("pass: ")); Serial.println(AP_PASS);
   Serial.print(F("Open http://"));
