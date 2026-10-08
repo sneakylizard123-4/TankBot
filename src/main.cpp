@@ -10,6 +10,29 @@
   typedef ESP8266WebServer HttpServer;
 #endif
 
+// ============================================================================
+//  Wemos D1 TankBot - WiFi AP + web D-pad controller for an L298N (blue board)
+//
+//  The board creates its own WiFi network:
+//     SSID : TankBot
+//     pass : 12345678
+//  Connect a phone/laptop to it, open  http://192.168.4.1  and drive the tank.
+//
+//  L298N wiring (D1 -> L298N):
+//    D13 (GPIO14) -> IN1   (motor A direction 1)
+//    D12 (GPIO12) -> IN2   (motor A direction 2)
+//    D11 (GPIO13) -> IN3   (motor B direction 1)
+//    D10 (GPIO15) -> IN4   (motor B direction 2)
+//    ENA, ENB    -> 5V (jumper, always on -> full speed)
+//    GND         -> GND shared with the board
+//    7-12V       -> VMS motor supply
+//
+//  (The SPI row is often labeled D5-D8 = SCK/MISO/MOSI/SS; the pins are the
+//   same GPIOs: D5=14, D6=12, D7=13, D8=15.)
+//
+//  Edit the pin numbers below to match your wiring.
+// ============================================================================
+
 
 #define PIN_IN1 14
 #define PIN_IN2 12
