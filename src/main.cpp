@@ -101,7 +101,6 @@ button:active{background:#ff9800}
 <button class="back" onpointerdown="go('back')">&#9660;</button>
 <button class="right"onpointerdown="go('right')">&#9654;</button>
 </div>
-<button class="stop" onpointerdown="go('stop')">STOP</button>
 <script>function go(c){fetch('/cmd/'+c).catch(function(){});}</script>
 </body></html>)HTML";
   server.send(200, "text/html", PAGE);
