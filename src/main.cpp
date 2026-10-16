@@ -77,6 +77,9 @@
 #define ELRS_RX_PIN     3               // ELRS receiver TX pad -> D1 GPIO3 (board "RX")
 #define ELRS_TX_PIN     2               // ELRS receiver RX pad -> D1 GPIO2 (board D4)
 
+float trimLeft = 1;
+float trimRight = 1;
+
 static HttpServer server(80);
 static WebSocketsServer webSocket(WS_PORT);
 
@@ -103,20 +106,33 @@ static void printResetInfo(const char* tag) {
 }
 
 static void motorForward(int motor) {
-  if (motor == MOTOR_A) { digitalWrite(PIN_IN1, HIGH); digitalWrite(PIN_IN2, LOW); }
-  else                  { digitalWrite(PIN_IN3, HIGH); digitalWrite(PIN_IN4, LOW); }
+  if (motor == MOTOR_A) { analogWrite(PIN_IN1, 255*trimRight); analogWrite(PIN_IN2, 0); }
+  else                  { analogWrite(PIN_IN3, 255*trimLeft); analogWrite(PIN_IN4, 0); }
 }
 
 static void motorBackward(int motor) {
-  if (motor == MOTOR_A) { digitalWrite(PIN_IN1, LOW);  digitalWrite(PIN_IN2, HIGH); }
-  else                  { digitalWrite(PIN_IN3, LOW);  digitalWrite(PIN_IN4, HIGH); }
+  if (motor == MOTOR_A) { analogWrite(PIN_IN1, 0);  analogWrite(PIN_IN2, 255*trimRight); }
+  else                  { analogWrite(PIN_IN3, 0);  analogWrite(PIN_IN4, 255*trimLeft); }
 }
 
 static void motorCmd(int motor, int dir) {          // dir: +1 fwd, -1 back, 0 stop
   if (dir > 0)      motorForward(motor);
   else if (dir < 0) motorBackward(motor);
-  else              { digitalWrite(PIN_IN1, LOW); digitalWrite(PIN_IN2, LOW);
-                      if (motor == MOTOR_B) { digitalWrite(PIN_IN3, LOW); digitalWrite(PIN_IN4, LOW); } }
+  else              { analogWrite(PIN_IN1, 0); analogWrite(PIN_IN2, 0);
+                      if (motor == MOTOR_B) { analogWrite(PIN_IN3, 0); analogWrite(PIN_IN4, 0); } }
+}
+
+static void updateTrim(float trim){
+  if(trim>0){
+    trimRight = (trim-1)*-1;
+    trimLeft = 1;
+  }else if (trim<0){
+    trimLeft = trim+1;
+    trimRight= 1;
+  }else{
+    trimRight = 0;
+    trimLeft = 0;
+  }
 }
 
 static void driveFwd()      { motorCmd(MOTOR_A,  1); motorCmd(MOTOR_B,  1); }
@@ -130,6 +146,10 @@ static void driveBackRight(){ motorCmd(MOTOR_A, -1); motorCmd(MOTOR_B,  0); }
 static void driveStop()     { motorCmd(MOTOR_A,  0); motorCmd(MOTOR_B,  0); }
 
 static void applyCommand(const String& c, bool fromRc = false) {
+  if (c.startsWith("trim:")) {          // trim adjusts speed, never drives
+    updateTrim(c.substring(5).toFloat());
+    return;
+  }
   if (!fromRc && millis() < rcActiveUntil) return;   // RC currently has control
   if (fromRc && c != "stop") rcActiveUntil = millis() + RC_HOLD_MS;
   if      (c == "fwd")   driveFwd();
@@ -169,6 +189,40 @@ button:active{background:#ff9800}
 <button class="back" data-cmd="back">&#9660;</button>
 <button class="right"data-cmd="right">&#9654;</button>
 </div>
+<div>
+<input id="trim" type="range" min="-1" max="1" value="0" step="0.01">
+</div>
+<script>
+var ws = new WebSocket('ws://' + location.host + ':81/');
+ws.onopen = function() { console.log('ws connected'); };
+ws.onclose = function() { console.log('ws closed'); };
+function sendCmd(c){ if(ws.readyState == 1) ws.send(c); }
+var trim = document.getElementById('trim');
+trim.oninput = function(){ sendCmd('trim:' + trim.value); };
+trim.onchange = function(){ sendCmd('trim:' + trim.value); };
+var holdTimer = null, holding = false;
+function startHold(c){
+  stopHold();
+  holding = true;
+  sendCmd(c);
+  holdTimer = setInterval(function(){ sendCmd(c); }, 100);
+}
+function stopHold(){
+  if(holdTimer){ clearInterval(holdTimer); holdTimer = null; }
+  if(holding){ holding = false; sendCmd('stop'); }
+}
+var btns = document.querySelectorAll('button');
+for(var i=0;i<btns.length;i++){
+  var b = btns[i];
+  var c = b.getAttribute('data-cmd');
+  b.addEventListener('touchstart', function(e){ e.preventDefault(); startHold(this.dataset.cmd); }.bind(b), {passive:false});
+  b.addEventListener('mousedown',  function(e){ e.preventDefault(); startHold(this.dataset.cmd); }.bind(b));
+  b.addEventListener('touchend',   function(e){ e.preventDefault(); stopHold(); }, {passive:false});
+  b.addEventListener('touchcancel',function(e){ e.preventDefault(); stopHold(); }, {passive:false});
+  b.addEventListener('mouseup',    function(e){ e.preventDefault(); stopHold(); });
+  b.addEventListener('mouseleave', function(e){ stopHold(); });
+}
+</script>
 </body></html>)HTML";
   server.send(200, "text/html", PAGE);
 }
@@ -334,7 +388,7 @@ void setup(void) {
   static const int motorPins[] = { PIN_IN1, PIN_IN2, PIN_IN3, PIN_IN4 };
   for (size_t i = 0; i < sizeof(motorPins) / sizeof(motorPins[0]); i++) {
     pinMode(motorPins[i], OUTPUT);
-    digitalWrite(motorPins[i], LOW);
+    analogWrite(motorPins[i], 0);
   }
   Serial.println(F("motor pins set LOW"));
 
